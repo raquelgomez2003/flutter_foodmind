@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'add_product_screen.dart'; // 👈 IMPORTANTE
+import 'package:flutter_foodmind/screens/inventory/add_product_screen.dart';
 
 class InventoryScreen extends StatefulWidget {
   const InventoryScreen({super.key});
@@ -11,15 +11,10 @@ class InventoryScreen extends StatefulWidget {
 }
 
 class _InventoryScreenState extends State<InventoryScreen> {
-
-  // 🔥 Función para obtener datos de tu API
   Future<List> obtenerDespensa() async {
     final response = await http.get(
       Uri.parse('https://yost.es/SM-IT/2025-26/1B/website/mvp/despensa.php'),
     );
-
-    print("STATUS: ${response.statusCode}");
-    print("BODY: ${response.body}");
 
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
@@ -28,12 +23,53 @@ class _InventoryScreenState extends State<InventoryScreen> {
     }
   }
 
+  Future<void> borrarProducto(String id) async {
+    final response = await http.post(
+      Uri.parse('https://yost.es/SM-IT/2025-26/1B/website/mvp/borrar_despensa.php'),
+      body: {"id": id},
+    );
+
+    final data = jsonDecode(response.body);
+
+    if (data["ok"] == true) {
+      setState(() {});
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Producto borrado")),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Error al borrar producto")),
+      );
+    }
+  }
+
+  void confirmarBorrado(String id, String nombre) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Borrar producto"),
+        content: Text("¿Seguro que quieres borrar \"$nombre\"?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancelar"),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              borrarProducto(id);
+            },
+            child: const Text("Borrar"),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("Inventario")),
-
-      // ➕ BOTÓN AÑADIR
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
           await Navigator.push(
@@ -42,23 +78,17 @@ class _InventoryScreenState extends State<InventoryScreen> {
               builder: (context) => const AddProductScreen(),
             ),
           );
-
-          // 🔄 refresca al volver
           setState(() {});
         },
         child: const Icon(Icons.add),
       ),
-
       body: FutureBuilder(
         future: obtenerDespensa(),
         builder: (context, snapshot) {
-
-          // 🔄 Cargando
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          // ❌ Error
           if (snapshot.hasError) {
             return Center(
               child: Text("Error: ${snapshot.error}"),
@@ -67,7 +97,12 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
           final items = snapshot.data as List;
 
-          // 📦 Lista de productos
+          if (items.isEmpty) {
+            return const Center(
+              child: Text("No hay productos en el inventario"),
+            );
+          }
+
           return ListView.builder(
             itemCount: items.length,
             itemBuilder: (context, index) {
@@ -78,9 +113,18 @@ class _InventoryScreenState extends State<InventoryScreen> {
                 child: ListTile(
                   title: Text(item['nombre'] ?? 'Sin nombre'),
                   subtitle: Text(
-                    "Marca: ${item['marca']} \nCantidad: ${item['cantidad']} \nCalorías: ${item['calorias']}"
+                    "Marca: ${item['marca']} \nCantidad: ${item['cantidad']} \nCalorías: ${item['calorias']}",
                   ),
                   isThreeLine: true,
+                  trailing: IconButton(
+                    icon: const Icon(Icons.delete, color: Colors.red),
+                    onPressed: () {
+                      confirmarBorrado(
+                        item['id'].toString(),
+                        item['nombre'] ?? 'producto',
+                      );
+                    },
+                  ),
                 ),
               );
             },
