@@ -2,24 +2,35 @@ import 'package:flutter/material.dart';
 import 'dislikes_screen.dart';
 
 class AllergiesScreen extends StatefulWidget {
+  final String numeroPack;
   final String diet;
 
-  const AllergiesScreen({super.key, required this.diet});
+  const AllergiesScreen({
+    super.key,
+    required this.numeroPack,
+    required this.diet,
+  });
 
   @override
   State<AllergiesScreen> createState() => _AllergiesScreenState();
 }
 
 class _AllergiesScreenState extends State<AllergiesScreen> {
-  bool? hasAllergies; // null = no ha respondido
+  bool? hasAllergies;
   final TextEditingController _allergyController = TextEditingController();
+
+  @override
+  void dispose() {
+    _allergyController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Alergias e intolerancias"),
-        backgroundColor: Color(0xFF537e5e),
+        backgroundColor: const Color(0xFF537e5e),
       ),
       body: Padding(
         padding: const EdgeInsets.all(20),
@@ -30,17 +41,16 @@ class _AllergiesScreenState extends State<AllergiesScreen> {
               "¿Tienes alguna intolerancia o alergia alimentaria?",
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
-
             const SizedBox(height: 20),
-
             Row(
               children: [
                 Expanded(
                   child: ElevatedButton(
                     onPressed: () => setState(() => hasAllergies = true),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor:
-                          hasAllergies == true ? Color(0xFF537e5e) : Colors.grey,
+                      backgroundColor: hasAllergies == true
+                          ? const Color(0xFF537e5e)
+                          : Colors.grey,
                     ),
                     child: const Text("Sí"),
                   ),
@@ -50,17 +60,16 @@ class _AllergiesScreenState extends State<AllergiesScreen> {
                   child: ElevatedButton(
                     onPressed: () => setState(() => hasAllergies = false),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor:
-                          hasAllergies == false ? Color(0xFF537e5e) : Colors.white,
+                      backgroundColor: hasAllergies == false
+                          ? const Color(0xFF537e5e)
+                          : Colors.white,
                     ),
                     child: const Text("No"),
                   ),
                 ),
               ],
             ),
-
             const SizedBox(height: 20),
-
             if (hasAllergies == true)
               TextField(
                 controller: _allergyController,
@@ -69,16 +78,13 @@ class _AllergiesScreenState extends State<AllergiesScreen> {
                   border: OutlineInputBorder(),
                 ),
               ),
-
             const Spacer(),
-
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () {
                   if (hasAllergies == null) return;
 
-                  // ⭐ Convertimos a LISTA
                   List<String> allergies = [];
 
                   if (hasAllergies == true) {
@@ -95,6 +101,7 @@ class _AllergiesScreenState extends State<AllergiesScreen> {
                     context,
                     MaterialPageRoute(
                       builder: (_) => DislikesScreen(
+                        numeroPack: widget.numeroPack,
                         diet: widget.diet,
                         allergies: allergies,
                       ),
@@ -102,10 +109,13 @@ class _AllergiesScreenState extends State<AllergiesScreen> {
                   );
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Color(0xFF537e5e),
+                  backgroundColor: const Color(0xFF537e5e),
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
-                child: const Text("Continuar", style: TextStyle(fontSize: 18)),
+                child: const Text(
+                  "Continuar",
+                  style: TextStyle(fontSize: 18),
+                ),
               ),
             ),
           ],

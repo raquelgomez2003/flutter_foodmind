@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_foodmind/screens/inventory/add_product_screen.dart';
 
 class InventoryScreen extends StatefulWidget {
@@ -12,21 +13,58 @@ class InventoryScreen extends StatefulWidget {
 
 class _InventoryScreenState extends State<InventoryScreen> {
   Future<List> obtenerDespensa() async {
-    final response = await http.get(
+    final prefs = await SharedPreferences.getInstance();
+    final usuarioId = prefs.getInt('usuario_id');
+    final numeroPack = prefs.getString('numero_pack');
+
+    print('USUARIO_ID ACTUAL: $usuarioId');
+    print('NUMERO_PACK ACTUAL: $numeroPack');
+
+    if (usuarioId == null) {
+      throw Exception("No se encontró el usuario actual");
+    }
+
+    final response = await http.post(
       Uri.parse('https://yost.es/SM-IT/2025-26/1B/website/mvp/despensa.php'),
+      body: {
+        'usuario_id': usuarioId.toString(),
+      },
     );
 
     if (response.statusCode == 200) {
-      return jsonDecode(response.body);
+      final data = jsonDecode(response.body);
+
+      if (data is List) {
+        return data;
+      }
+
+      if (data is Map && data['ok'] == true && data['productos'] != null) {
+        return data['productos'];
+      }
+
+      throw Exception("Formato de respuesta no válido");
     } else {
       throw Exception("Error al cargar datos");
     }
   }
 
   Future<void> borrarProducto(String id) async {
+    final prefs = await SharedPreferences.getInstance();
+    final usuarioId = prefs.getInt('usuario_id');
+
+    if (usuarioId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("No se encontró el usuario actual")),
+      );
+      return;
+    }
+
     final response = await http.post(
       Uri.parse('https://yost.es/SM-IT/2025-26/1B/website/mvp/borrar_despensa.php'),
-      body: {"id": id},
+      body: {
+        "id": id,
+        "usuario_id": usuarioId.toString(),
+      },
     );
 
     final data = jsonDecode(response.body);
@@ -44,11 +82,22 @@ class _InventoryScreenState extends State<InventoryScreen> {
   }
 
   Future<void> cambiarFavorito(String id, int favorito) async {
+    final prefs = await SharedPreferences.getInstance();
+    final usuarioId = prefs.getInt('usuario_id');
+
+    if (usuarioId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("No se encontró el usuario actual")),
+      );
+      return;
+    }
+
     final response = await http.post(
       Uri.parse('https://yost.es/SM-IT/2025-26/1B/website/mvp/favorito_despensa.php'),
       body: {
         "id": id,
         "favorito": favorito.toString(),
+        "usuario_id": usuarioId.toString(),
       },
     );
 
@@ -102,7 +151,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
         },
         child: const Icon(Icons.add),
       ),
-      body: FutureBuilder(
+      body: FutureBuilder<List>(
         future: obtenerDespensa(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -115,7 +164,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
             );
           }
 
-          final items = snapshot.data as List;
+          final items = snapshot.data ?? [];
 
           if (items.isEmpty) {
             return const Center(
@@ -134,7 +183,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                 child: ListTile(
                   title: Text(item['nombre'] ?? 'Sin nombre'),
                   subtitle: Text(
-                    "Marca: ${item['marca']} \nCantidad: ${item['cantidad']} \nCalorías: ${item['calorias']}",
+                    "Marca: ${item['marca'] ?? ''} \nCantidad: ${item['cantidad'] ?? ''} \nCalorías: ${item['calorias'] ?? ''}",
                   ),
                   isThreeLine: true,
                   leading: IconButton(

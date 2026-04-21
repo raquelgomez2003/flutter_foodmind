@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ScannerScreen extends StatefulWidget {
   const ScannerScreen({super.key});
@@ -11,7 +12,9 @@ class ScannerScreen extends StatefulWidget {
 }
 
 class _ScannerScreenState extends State<ScannerScreen> {
-  final MobileScannerController scannerController = MobileScannerController();
+  final MobileScannerController scannerController = MobileScannerController(
+    detectionSpeed: DetectionSpeed.noDuplicates,
+  );
 
   final TextEditingController codigoController = TextEditingController();
   final TextEditingController nombreController = TextEditingController();
@@ -24,6 +27,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
   bool escaneando = true;
   bool cargandoProducto = false;
   bool guardando = false;
+  bool procesandoCodigo = false;
 
   @override
   void dispose() {
@@ -118,25 +122,38 @@ class _ScannerScreenState extends State<ScannerScreen> {
     });
 
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final usuarioId = prefs.getInt('usuario_id');
+
+      if (usuarioId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No se encontró el usuario actual'),
+          ),
+        );
+        return;
+      }
+
       final response = await http.post(
         Uri.parse(
           'https://yost.es/SM-IT/2025-26/1B/website/mvp/insertar_despensa.php',
         ),
         body: {
+          'usuario_id': usuarioId.toString(),
           'codigo': codigoController.text,
           'nombre': nombreController.text,
           'marca': marcaController.text,
           'ingredientes': ingredientesController.text,
-          'calorias':
-              caloriasController.text.trim().isEmpty ? '0' : caloriasController.text,
+          'calorias': caloriasController.text.trim().isEmpty
+              ? '0'
+              : caloriasController.text,
           'cantidad': cantidadController.text,
+          'ultima_accion': '1',
+          'favorito': '0',
         },
       );
 
       if (!mounted) return;
-
-      print('STATUS: ${response.statusCode}');
-      print('BODY: ${response.body}');
 
       final data = jsonDecode(response.body);
 
@@ -146,7 +163,8 @@ class _ScannerScreenState extends State<ScannerScreen> {
             content: Text('Producto guardado correctamente'),
           ),
         );
-        Navigator.pop(context, true);
+
+        await reiniciarScanner();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -170,7 +188,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
   }
 
   Future<void> onDetect(BarcodeCapture capture) async {
-    if (!escaneando) return;
+    if (!escaneando || procesandoCodigo) return;
 
     final List<Barcode> barcodes = capture.barcodes;
     if (barcodes.isEmpty) return;
@@ -178,15 +196,19 @@ class _ScannerScreenState extends State<ScannerScreen> {
     final String? code = barcodes.first.rawValue;
     if (code == null || code.isEmpty) return;
 
+    procesandoCodigo = true;
+
     setState(() {
       escaneando = false;
     });
 
     await scannerController.stop();
     await buscarProductoPorCodigo(code);
+
+    procesandoCodigo = false;
   }
 
-  Future<void> volverAEscanear() async {
+  Future<void> reiniciarScanner() async {
     codigoController.clear();
     nombreController.clear();
     marcaController.clear();
@@ -194,9 +216,13 @@ class _ScannerScreenState extends State<ScannerScreen> {
     caloriasController.clear();
     cantidadController.text = '1';
 
+    if (!mounted) return;
+
     setState(() {
       escaneando = true;
       cargandoProducto = false;
+      guardando = false;
+      procesandoCodigo = false;
     });
 
     await scannerController.start();
@@ -221,25 +247,23 @@ class _ScannerScreenState extends State<ScannerScreen> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            if (escaneando)
-              SizedBox(
-                height: 300,
-                child: MobileScanner(
-                  controller: scannerController,
-                  onDetect: onDetect,
-                ),
-              )
-            else
-              Container(
-                height: 120,
-                width: double.infinity,
-                alignment: Alignment.center,
-                color: Colors.grey.shade200,
-                child: const Text(
-                  'Código escaneado',
-                  style: TextStyle(fontSize: 20),
-                ),
-              ),
+            SizedBox(
+              height: 300,
+              child: escaneando
+                  ? MobileScanner(
+                      controller: scannerController,
+                      onDetect: onDetect,
+                    )
+                  : Container(
+                      width: double.infinity,
+                      alignment: Alignment.center,
+                      color: Colors.grey.shade200,
+                      child: const Text(
+                        'Código escaneado',
+                        style: TextStyle(fontSize: 20),
+                      ),
+                    ),
+            ),
             Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -315,7 +339,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: OutlinedButton(
-                        onPressed: volverAEscanear,
+                        onPressed: reiniciarScanner,
                         child: const Text('Escanear otro'),
                       ),
                     ),
