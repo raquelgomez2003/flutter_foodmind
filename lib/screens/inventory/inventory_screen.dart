@@ -12,13 +12,24 @@ class InventoryScreen extends StatefulWidget {
 }
 
 class _InventoryScreenState extends State<InventoryScreen> {
+  late Future<List> _futureDespensa;
+
+  static const Color verde = Color(0xFF527d5a);
+  static const Color beige = Color(0xFFd2b08b);
+  static const Color crema = Color(0xFFe9ddd4);
+  static const Color mostaza = Color(0xFFf1b810);
+  static const Color marron = Color(0xFF9d5d31);
+  static const Color fondo = Color(0xFFF8F6F2);
+
+  @override
+  void initState() {
+    super.initState();
+    _futureDespensa = obtenerDespensa();
+  }
+
   Future<List> obtenerDespensa() async {
     final prefs = await SharedPreferences.getInstance();
     final usuarioId = prefs.getInt('usuario_id');
-    final numeroPack = prefs.getString('numero_pack');
-
-    print('USUARIO_ID ACTUAL: $usuarioId');
-    print('NUMERO_PACK ACTUAL: $numeroPack');
 
     if (usuarioId == null) {
       throw Exception("No se encontró el usuario actual");
@@ -49,8 +60,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
   }
 
   Future<void> recargarInventario() async {
-    setState(() {});
-    await obtenerDespensa();
+    setState(() {
+      _futureDespensa = obtenerDespensa();
+    });
+    await _futureDespensa;
   }
 
   Future<void> borrarProducto(String id) async {
@@ -75,7 +88,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
     final data = jsonDecode(response.body);
 
     if (data["ok"] == true) {
-      setState(() {});
+      setState(() {
+        _futureDespensa = obtenerDespensa();
+      });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Producto borrado")),
       );
@@ -109,7 +124,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
     final data = jsonDecode(response.body);
 
     if (data["ok"] == true) {
-      setState(() {});
+      setState(() {
+        _futureDespensa = obtenerDespensa();
+      });
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Error al actualizar favorito")),
@@ -121,6 +138,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
         title: const Text("Borrar producto"),
         content: Text("¿Seguro que quieres borrar \"$nombre\"?"),
         actions: [
@@ -133,7 +153,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
               Navigator.pop(context);
               borrarProducto(id);
             },
-            child: const Text("Borrar"),
+            child: const Text(
+              "Borrar",
+              style: TextStyle(color: Colors.red),
+            ),
           ),
         ],
       ),
@@ -162,16 +185,357 @@ class _InventoryScreenState extends State<InventoryScreen> {
     }
   }
 
+  Widget _buildHeader() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: crema, width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              Container(
+                width: 62,
+                height: 62,
+                decoration: BoxDecoration(
+                  color: crema,
+                  borderRadius: BorderRadius.circular(18),
+                ),
+              ),
+              Positioned(
+                top: 5,
+                right: 3,
+                child: Container(
+                  width: 12,
+                  height: 12,
+                  decoration: const BoxDecoration(
+                    color: mostaza,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+              const Icon(
+                Icons.kitchen_rounded,
+                color: verde,
+                size: 30,
+              ),
+            ],
+          ),
+          const SizedBox(width: 16),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Tu inventario',
+                  style: TextStyle(
+                    fontFamily: 'MoreSugar',
+                    fontSize: 24,
+                    color: verde,
+                  ),
+                ),
+                SizedBox(height: 6),
+                Text(
+                  'Consulta tus productos y revisa su estado de frescura.',
+                  style: TextStyle(
+                    fontSize: 13,
+                    height: 1.35,
+                    color: Color(0xFF6A6A6A),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      children: [
+        const SizedBox(height: 40),
+        _buildHeader(),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 36),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: crema, width: 1.2),
+            ),
+            child: const Column(
+              children: [
+                Icon(
+                  Icons.inventory_2_outlined,
+                  size: 54,
+                  color: verde,
+                ),
+                SizedBox(height: 16),
+                Text(
+                  'Tu inventario está vacío',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: verde,
+                  ),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'Añade productos para empezar a organizar tu despensa.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFF7A7A7A),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 120),
+      ],
+    );
+  }
+
+  Widget _buildErrorState(Object error) {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      children: [
+        const SizedBox(height: 40),
+        _buildHeader(),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 36),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: crema, width: 1.2),
+            ),
+            child: Column(
+              children: [
+                const Icon(
+                  Icons.error_outline_rounded,
+                  size: 54,
+                  color: marron,
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'No se pudo cargar el inventario',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: verde,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '$error',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFF7A7A7A),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 120),
+      ],
+    );
+  }
+
+  Widget _buildProductCard(Map item) {
+    final esFavorito = item['favorito'].toString() == '1';
+    final estadoCaducidad = item['estado_caducidad']?.toString() ?? 'verde';
+    final colorCaducidad = obtenerColorCaducidad(estadoCaducidad);
+    final textoCaducidad = obtenerTextoCaducidad(estadoCaducidad);
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: crema, width: 1.1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.035),
+            blurRadius: 14,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 14, 10, 14),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: crema.withOpacity(0.75),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Icon(
+                Icons.shopping_basket_rounded,
+                color: verde,
+                size: 26,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item['nombre'] ?? 'Sin nombre',
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      color: verde,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Marca: ${item['marca'] ?? ''}',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFF6A6A6A),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Cantidad: ${item['cantidad'] ?? ''}',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFF6A6A6A),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Calorías: ${item['calorias'] ?? ''}',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFF6A6A6A),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: colorCaducidad.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 9,
+                          height: 9,
+                          decoration: BoxDecoration(
+                            color: colorCaducidad,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          textoCaducidad,
+                          style: TextStyle(
+                            color: colorCaducidad,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Column(
+              children: [
+                IconButton(
+                  icon: Icon(
+                    esFavorito ? Icons.favorite : Icons.favorite_border,
+                    color: esFavorito ? Colors.red : marron.withOpacity(0.7),
+                  ),
+                  onPressed: () {
+                    cambiarFavorito(
+                      item['id'].toString(),
+                      esFavorito ? 0 : 1,
+                    );
+                  },
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete_outline_rounded, color: Colors.red),
+                  onPressed: () {
+                    confirmarBorrado(
+                      item['id'].toString(),
+                      item['nombre'] ?? 'producto',
+                    );
+                  },
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
       canPop: false,
       child: Scaffold(
+        backgroundColor: fondo,
         appBar: AppBar(
           automaticallyImplyLeading: false,
-          title: const Text("Inventario"),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          title: const Text(
+            "Inventario",
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w600,
+              color: verde,
+            ),
+          ),
+          centerTitle: true,
+          actions: [
+            IconButton(
+              tooltip: 'Recargar',
+              onPressed: recargarInventario,
+              icon: const Icon(Icons.refresh_rounded, color: verde),
+            ),
+          ],
         ),
         floatingActionButton: FloatingActionButton(
+          backgroundColor: verde,
+          foregroundColor: Colors.white,
           onPressed: () async {
             await Navigator.push(
               context,
@@ -179,129 +543,50 @@ class _InventoryScreenState extends State<InventoryScreen> {
                 builder: (context) => const AddProductScreen(),
               ),
             );
-            setState(() {});
+            setState(() {
+              _futureDespensa = obtenerDespensa();
+            });
           },
           child: const Icon(Icons.add),
         ),
-        body: FutureBuilder<List>(
-          future: obtenerDespensa(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-
-            if (snapshot.hasError) {
-              return RefreshIndicator(
-                onRefresh: recargarInventario,
-                child: ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  children: [
-                    SizedBox(
-                      height: MediaQuery.of(context).size.height * 0.7,
-                      child: Center(
-                        child: Text("Error: ${snapshot.error}"),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }
-
-            final items = snapshot.data ?? [];
-
-            if (items.isEmpty) {
-              return RefreshIndicator(
-                onRefresh: recargarInventario,
-                child: ListView(
+        body: RefreshIndicator(
+          color: verde,
+          onRefresh: recargarInventario,
+          child: FutureBuilder<List>(
+            future: _futureDespensa,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return ListView(
                   physics: const AlwaysScrollableScrollPhysics(),
                   children: const [
-                    SizedBox(
-                      height: 500,
-                      child: Center(
-                        child: Text("No hay productos en el inventario"),
-                      ),
-                    ),
+                    SizedBox(height: 140),
+                    Center(child: CircularProgressIndicator(color: verde)),
                   ],
-                ),
-              );
-            }
+                );
+              }
 
-            return RefreshIndicator(
-              onRefresh: recargarInventario,
-              child: ListView.builder(
+              if (snapshot.hasError) {
+                return _buildErrorState(snapshot.error!);
+              }
+
+              final items = snapshot.data ?? [];
+
+              if (items.isEmpty) {
+                return _buildEmptyState();
+              }
+
+              return ListView.builder(
                 physics: const AlwaysScrollableScrollPhysics(),
-                itemCount: items.length,
+                padding: const EdgeInsets.only(bottom: 110),
+                itemCount: items.length + 1,
                 itemBuilder: (context, index) {
-                  final item = items[index];
-                  final esFavorito = item['favorito'].toString() == '1';
-                  final estadoCaducidad =
-                      item['estado_caducidad']?.toString() ?? 'verde';
-                  final colorCaducidad =
-                      obtenerColorCaducidad(estadoCaducidad);
-                  final textoCaducidad =
-                      obtenerTextoCaducidad(estadoCaducidad);
-
-                  return Card(
-                    margin: const EdgeInsets.all(8),
-                    child: ListTile(
-                      title: Text(item['nombre'] ?? 'Sin nombre'),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text("Marca: ${item['marca'] ?? ''}"),
-                          Text("Cantidad: ${item['cantidad'] ?? ''}"),
-                          Text("Calorías: ${item['calorias'] ?? ''}"),
-                          const SizedBox(height: 6),
-                          Row(
-                            children: [
-                              Container(
-                                width: 10,
-                                height: 10,
-                                decoration: BoxDecoration(
-                                  color: colorCaducidad,
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                textoCaducidad,
-                                style: TextStyle(
-                                  color: colorCaducidad,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                      leading: IconButton(
-                        icon: Icon(
-                          esFavorito ? Icons.favorite : Icons.favorite_border,
-                          color: esFavorito ? Colors.red : null,
-                        ),
-                        onPressed: () {
-                          cambiarFavorito(
-                            item['id'].toString(),
-                            esFavorito ? 0 : 1,
-                          );
-                        },
-                      ),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.red),
-                        onPressed: () {
-                          confirmarBorrado(
-                            item['id'].toString(),
-                            item['nombre'] ?? 'producto',
-                          );
-                        },
-                      ),
-                    ),
-                  );
+                  if (index == 0) return _buildHeader();
+                  final item = items[index - 1];
+                  return _buildProductCard(item);
                 },
-              ),
-            );
-          },
+              );
+            },
+          ),
         ),
       ),
     );
