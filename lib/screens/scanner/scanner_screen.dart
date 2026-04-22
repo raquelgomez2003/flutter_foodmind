@@ -28,6 +28,9 @@ class _ScannerScreenState extends State<ScannerScreen> {
   bool cargandoProducto = false;
   bool guardando = false;
   bool procesandoCodigo = false;
+  bool productoCargado = false;
+
+  int scannerKey = 0;
 
   @override
   void dispose() {
@@ -46,6 +49,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
 
     setState(() {
       cargandoProducto = true;
+      productoCargado = false;
     });
 
     codigoController.text = barcode;
@@ -70,6 +74,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
             ingredientesController.text = product['ingredients_text'] ?? '';
             caloriasController.text =
                 nutriments['energy-kcal_100g']?.toString() ?? '0';
+            productoCargado = true;
           });
 
           if (nombreController.text.isEmpty) {
@@ -80,6 +85,10 @@ class _ScannerScreenState extends State<ScannerScreen> {
             );
           }
         } else {
+          setState(() {
+            productoCargado = true;
+          });
+
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('No se encontró información para ese código'),
@@ -223,8 +232,13 @@ class _ScannerScreenState extends State<ScannerScreen> {
       cargandoProducto = false;
       guardando = false;
       procesandoCodigo = false;
+      productoCargado = false;
+      scannerKey++;
     });
 
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    if (!mounted) return;
     await scannerController.start();
   }
 
@@ -251,6 +265,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
               height: 300,
               child: escaneando
                   ? MobileScanner(
+                      key: ValueKey(scannerKey),
                       controller: scannerController,
                       onDetect: onDetect,
                     )
@@ -268,60 +283,42 @@ class _ScannerScreenState extends State<ScannerScreen> {
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
-                  TextField(
-                    controller: codigoController,
-                    readOnly: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Código de barras',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: nombreController,
-                    decoration: const InputDecoration(
-                      labelText: 'Nombre',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: marcaController,
-                    decoration: const InputDecoration(
-                      labelText: 'Marca',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: ingredientesController,
-                    maxLines: 3,
-                    decoration: const InputDecoration(
-                      labelText: 'Ingredientes',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: caloriasController,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Calorías',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: cantidadController,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Cantidad',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
                   if (cargandoProducto) const CircularProgressIndicator(),
-                  if (!cargandoProducto) ...[
+                  if (!escaneando && !cargandoProducto && productoCargado) ...[
+                    TextField(
+                      controller: codigoController,
+                      readOnly: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Código de barras',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: nombreController,
+                      decoration: const InputDecoration(
+                        labelText: 'Nombre',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: marcaController,
+                      decoration: const InputDecoration(
+                        labelText: 'Marca',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: cantidadController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Cantidad',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(

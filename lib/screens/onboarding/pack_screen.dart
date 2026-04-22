@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import '../../widgets/primary_button.dart';
 import 'diet_screen.dart';
 
@@ -12,28 +14,101 @@ class PackScreen extends StatefulWidget {
 class _PackScreenState extends State<PackScreen> {
   final TextEditingController numeroPackController = TextEditingController();
 
+  bool cargando = false;
+
   @override
   void dispose() {
     numeroPackController.dispose();
     super.dispose();
   }
 
-  void continuar() {
-    if (numeroPackController.text.trim().isEmpty) {
+  Future<void> continuar() async {
+    final numeroPack = numeroPackController.text.trim();
+
+    if (numeroPack.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Introduce el número de pack')),
       );
       return;
     }
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => DietScreen(
-          numeroPack: numeroPackController.text.trim(),
+    setState(() {
+      cargando = true;
+    });
+
+    try {
+      final response = await http.post(
+        Uri.parse(
+          'https://yost.es/SM-IT/2025-26/1B/website/mvp/validar_pack.php',
         ),
-      ),
-    );
+        body: {
+          'numero_pack': numeroPack,
+        },
+      );
+
+      if (!mounted) return;
+
+      final rawBody = response.body;
+      final body = rawBody.trim();
+
+      print('STATUS CODE: ${response.statusCode}');
+      print('RAW BODY: "$rawBody"');
+      print('TRIM BODY: "$body"');
+
+      if (body.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('El servidor devolvió una respuesta vacía'),
+          ),
+        );
+        return;
+      }
+
+      dynamic data;
+      try {
+        data = jsonDecode(body);
+      } catch (e) {
+        print('ERROR JSON: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Respuesta no válida del servidor'),
+          ),
+        );
+        return;
+      }
+
+      if (response.statusCode == 200 && data['ok'] == true) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => DietScreen(
+              numeroPack: numeroPack,
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              data['error'] ?? 'Número de pack no válido',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      print('ERROR GENERAL: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error de conexión: $e'),
+        ),
+      );
+    } finally {
+      if (!mounted) return;
+      setState(() {
+        cargando = false;
+      });
+    }
   }
 
   @override
@@ -238,10 +313,14 @@ class _PackScreenState extends State<PackScreen> {
                     const SizedBox(height: 20),
                     SizedBox(
                       width: double.infinity,
-                      child: PrimaryButton(
-                        text: 'Continuar',
-                        onPressed: continuar,
-                      ),
+                      child: cargando
+                          ? const Center(
+                              child: CircularProgressIndicator(),
+                            )
+                          : PrimaryButton(
+                              text: 'Continuar',
+                              onPressed: continuar,
+                            ),
                     ),
                   ],
                 ),
