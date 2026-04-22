@@ -1,9 +1,38 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../../widgets/primary_button.dart';
 import '../onboarding/pack_screen.dart';
+import '../home/home_screen.dart';
 
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
+
+  Future<void> empezar(BuildContext context) async {
+    final prefs = await SharedPreferences.getInstance();
+    final onboardingHecho =
+        prefs.getBool('onboarding_completado') ?? false;
+
+    if (!context.mounted) return;
+
+    if (onboardingHecho) {
+      // 👉 ya hizo onboarding → HOME
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const HomeScreen(),
+        ),
+      );
+    } else {
+      // 👉 no lo ha hecho → PACK
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const PackScreen(),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -33,15 +62,8 @@ class WelcomeScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 40),
                 PrimaryButton(
-                  text: 'Empezar',
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const PackScreen(),
-                      ),
-                    );
-                  },
+                  text: 'Start Cooking',
+                  onPressed: () => empezar(context),
                 ),
               ],
             ),

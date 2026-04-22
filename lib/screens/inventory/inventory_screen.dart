@@ -137,81 +137,87 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text("Inventario")),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const AddProductScreen(),
-            ),
-          );
-          setState(() {});
-        },
-        child: const Icon(Icons.add),
-      ),
-      body: FutureBuilder<List>(
-        future: obtenerDespensa(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (snapshot.hasError) {
-            return Center(
-              child: Text("Error: ${snapshot.error}"),
+    return PopScope(
+      canPop: false,
+      child: Scaffold(
+        appBar: AppBar(
+          automaticallyImplyLeading: false,
+          title: const Text("Inventario"),
+        ),
+        floatingActionButton: FloatingActionButton(
+          onPressed: () async {
+            await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const AddProductScreen(),
+              ),
             );
-          }
+            setState(() {});
+          },
+          child: const Icon(Icons.add),
+        ),
+        body: FutureBuilder<List>(
+          future: obtenerDespensa(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-          final items = snapshot.data ?? [];
-
-          if (items.isEmpty) {
-            return const Center(
-              child: Text("No hay productos en el inventario"),
-            );
-          }
-
-          return ListView.builder(
-            itemCount: items.length,
-            itemBuilder: (context, index) {
-              final item = items[index];
-              final esFavorito = item['favorito'].toString() == '1';
-
-              return Card(
-                margin: const EdgeInsets.all(8),
-                child: ListTile(
-                  title: Text(item['nombre'] ?? 'Sin nombre'),
-                  subtitle: Text(
-                    "Marca: ${item['marca'] ?? ''} \nCantidad: ${item['cantidad'] ?? ''} \nCalorías: ${item['calorias'] ?? ''}",
-                  ),
-                  isThreeLine: true,
-                  leading: IconButton(
-                    icon: Icon(
-                      esFavorito ? Icons.favorite : Icons.favorite_border,
-                      color: esFavorito ? Colors.red : null,
-                    ),
-                    onPressed: () {
-                      cambiarFavorito(
-                        item['id'].toString(),
-                        esFavorito ? 0 : 1,
-                      );
-                    },
-                  ),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.delete, color: Colors.red),
-                    onPressed: () {
-                      confirmarBorrado(
-                        item['id'].toString(),
-                        item['nombre'] ?? 'producto',
-                      );
-                    },
-                  ),
-                ),
+            if (snapshot.hasError) {
+              return Center(
+                child: Text("Error: ${snapshot.error}"),
               );
-            },
-          );
-        },
+            }
+
+            final items = snapshot.data ?? [];
+
+            if (items.isEmpty) {
+              return const Center(
+                child: Text("No hay productos en el inventario"),
+              );
+            }
+
+            return ListView.builder(
+              itemCount: items.length,
+              itemBuilder: (context, index) {
+                final item = items[index];
+                final esFavorito = item['favorito'].toString() == '1';
+
+                return Card(
+                  margin: const EdgeInsets.all(8),
+                  child: ListTile(
+                    title: Text(item['nombre'] ?? 'Sin nombre'),
+                    subtitle: Text(
+                      "Marca: ${item['marca'] ?? ''} \nCantidad: ${item['cantidad'] ?? ''} \nCalorías: ${item['calorias'] ?? ''}",
+                    ),
+                    isThreeLine: true,
+                    leading: IconButton(
+                      icon: Icon(
+                        esFavorito ? Icons.favorite : Icons.favorite_border,
+                        color: esFavorito ? Colors.red : null,
+                      ),
+                      onPressed: () {
+                        cambiarFavorito(
+                          item['id'].toString(),
+                          esFavorito ? 0 : 1,
+                        );
+                      },
+                    ),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.delete, color: Colors.red),
+                      onPressed: () {
+                        confirmarBorrado(
+                          item['id'].toString(),
+                          item['nombre'] ?? 'producto',
+                        );
+                      },
+                    ),
+                  ),
+                );
+              },
+            );
+          },
+        ),
       ),
     );
   }
