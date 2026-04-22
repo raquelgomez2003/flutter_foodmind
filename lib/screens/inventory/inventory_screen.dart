@@ -48,6 +48,11 @@ class _InventoryScreenState extends State<InventoryScreen> {
     }
   }
 
+  Future<void> recargarInventario() async {
+    setState(() {});
+    await obtenerDespensa();
+  }
+
   Future<void> borrarProducto(String id) async {
     final prefs = await SharedPreferences.getInstance();
     final usuarioId = prefs.getInt('usuario_id');
@@ -186,89 +191,115 @@ class _InventoryScreenState extends State<InventoryScreen> {
             }
 
             if (snapshot.hasError) {
-              return Center(
-                child: Text("Error: ${snapshot.error}"),
+              return RefreshIndicator(
+                onRefresh: recargarInventario,
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  children: [
+                    SizedBox(
+                      height: MediaQuery.of(context).size.height * 0.7,
+                      child: Center(
+                        child: Text("Error: ${snapshot.error}"),
+                      ),
+                    ),
+                  ],
+                ),
               );
             }
 
             final items = snapshot.data ?? [];
 
             if (items.isEmpty) {
-              return const Center(
-                child: Text("No hay productos en el inventario"),
+              return RefreshIndicator(
+                onRefresh: recargarInventario,
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  children: const [
+                    SizedBox(
+                      height: 500,
+                      child: Center(
+                        child: Text("No hay productos en el inventario"),
+                      ),
+                    ),
+                  ],
+                ),
               );
             }
 
-            return ListView.builder(
-              itemCount: items.length,
-              itemBuilder: (context, index) {
-                final item = items[index];
-                final esFavorito = item['favorito'].toString() == '1';
-                final estadoCaducidad =
-                    item['estado_caducidad']?.toString() ?? 'verde';
-                final colorCaducidad =
-                    obtenerColorCaducidad(estadoCaducidad);
-                final textoCaducidad =
-                    obtenerTextoCaducidad(estadoCaducidad);
+            return RefreshIndicator(
+              onRefresh: recargarInventario,
+              child: ListView.builder(
+                physics: const AlwaysScrollableScrollPhysics(),
+                itemCount: items.length,
+                itemBuilder: (context, index) {
+                  final item = items[index];
+                  final esFavorito = item['favorito'].toString() == '1';
+                  final estadoCaducidad =
+                      item['estado_caducidad']?.toString() ?? 'verde';
+                  final colorCaducidad =
+                      obtenerColorCaducidad(estadoCaducidad);
+                  final textoCaducidad =
+                      obtenerTextoCaducidad(estadoCaducidad);
 
-                return Card(
-                  margin: const EdgeInsets.all(8),
-                  child: ListTile(
-                    title: Text(item['nombre'] ?? 'Sin nombre'),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text("Marca: ${item['marca'] ?? ''}"),
-                        Text("Cantidad: ${item['cantidad'] ?? ''}"),
-                        Text("Calorías: ${item['calorias'] ?? ''}"),
-                        const SizedBox(height: 6),
-                        Row(
-                          children: [
-                            Container(
-                              width: 10,
-                              height: 10,
-                              decoration: BoxDecoration(
-                                color: colorCaducidad,
-                                shape: BoxShape.circle,
+                  return Card(
+                    margin: const EdgeInsets.all(8),
+                    child: ListTile(
+                      title: Text(item['nombre'] ?? 'Sin nombre'),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text("Marca: ${item['marca'] ?? ''}"),
+                          Text("Cantidad: ${item['cantidad'] ?? ''}"),
+                          Text("Calorías: ${item['calorias'] ?? ''}"),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              Container(
+                                width: 10,
+                                height: 10,
+                                decoration: BoxDecoration(
+                                  color: colorCaducidad,
+                                  shape: BoxShape.circle,
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              textoCaducidad,
-                              style: TextStyle(
-                                color: colorCaducidad,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 12,
+                              const SizedBox(width: 6),
+                              Text(
+                                textoCaducidad,
+                                style: TextStyle(
+                                  color: colorCaducidad,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12,
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                    leading: IconButton(
-                      icon: Icon(
-                        esFavorito ? Icons.favorite : Icons.favorite_border,
-                        color: esFavorito ? Colors.red : null,
+                            ],
+                          ),
+                        ],
                       ),
-                      onPressed: () {
-                        cambiarFavorito(
-                          item['id'].toString(),
-                          esFavorito ? 0 : 1,
-                        );
-                      },
+                      leading: IconButton(
+                        icon: Icon(
+                          esFavorito ? Icons.favorite : Icons.favorite_border,
+                          color: esFavorito ? Colors.red : null,
+                        ),
+                        onPressed: () {
+                          cambiarFavorito(
+                            item['id'].toString(),
+                            esFavorito ? 0 : 1,
+                          );
+                        },
+                      ),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.delete, color: Colors.red),
+                        onPressed: () {
+                          confirmarBorrado(
+                            item['id'].toString(),
+                            item['nombre'] ?? 'producto',
+                          );
+                        },
+                      ),
                     ),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.delete, color: Colors.red),
-                      onPressed: () {
-                        confirmarBorrado(
-                          item['id'].toString(),
-                          item['nombre'] ?? 'producto',
-                        );
-                      },
-                    ),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             );
           },
         ),
