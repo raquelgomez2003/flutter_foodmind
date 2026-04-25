@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../widgets/primary_button.dart';
+import '../home/home_screen.dart';
 import 'diet_screen.dart';
 
 class PackScreen extends StatefulWidget {
@@ -48,12 +50,7 @@ class _PackScreenState extends State<PackScreen> {
 
       if (!mounted) return;
 
-      final rawBody = response.body;
-      final body = rawBody.trim();
-
-      print('STATUS CODE: ${response.statusCode}');
-      print('RAW BODY: "$rawBody"');
-      print('TRIM BODY: "$body"');
+      final body = response.body.trim();
 
       if (body.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -68,9 +65,8 @@ class _PackScreenState extends State<PackScreen> {
       try {
         data = jsonDecode(body);
       } catch (e) {
-        print('ERROR JSON: $e');
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          const SnackBar(
             content: Text('Respuesta no válida del servidor'),
           ),
         );
@@ -78,14 +74,43 @@ class _PackScreenState extends State<PackScreen> {
       }
 
       if (response.statusCode == 200 && data['ok'] == true) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => DietScreen(
-              numeroPack: numeroPack,
+        final bool usado = data['usado'] == true;
+
+        if (!usado) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => DietScreen(
+                numeroPack: numeroPack,
+              ),
             ),
-          ),
-        );
+          );
+        } else {
+          final usuarioId = data['usuario_id'];
+
+          if (usuarioId == null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('El pack ya está usado, pero no tiene usuario asociado'),
+              ),
+            );
+            return;
+          }
+
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setInt('usuario_id', int.parse(usuarioId.toString()));
+          await prefs.setString('numero_pack', numeroPack);
+          await prefs.setBool('onboarding_completado', true);
+
+          if (!mounted) return;
+
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const HomeScreen(),
+            ),
+          );
+        }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -97,7 +122,6 @@ class _PackScreenState extends State<PackScreen> {
       }
     } catch (e) {
       if (!mounted) return;
-      print('ERROR GENERAL: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error de conexión: $e'),

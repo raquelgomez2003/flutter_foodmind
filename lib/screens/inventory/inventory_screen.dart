@@ -15,7 +15,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
   late Future<List> _futureDespensa;
 
   static const Color verde = Color(0xFF527d5a);
-  static const Color beige = Color(0xFFd2b08b);
   static const Color crema = Color(0xFFe9ddd4);
   static const Color mostaza = Color(0xFFf1b810);
   static const Color marron = Color(0xFF9d5d31);
@@ -24,7 +23,40 @@ class _InventoryScreenState extends State<InventoryScreen> {
   @override
   void initState() {
     super.initState();
-    _futureDespensa = obtenerDespensa();
+    _futureDespensa = cargarInventarioActualizado();
+  }
+
+  Future<List> cargarInventarioActualizado() async {
+    await actualizarCaducidadTodos();
+    return await obtenerDespensa();
+  }
+
+  Future<void> actualizarCaducidadTodos() async {
+    final prefs = await SharedPreferences.getInstance();
+    final usuarioId = prefs.getInt('usuario_id');
+
+    if (usuarioId == null) {
+      throw Exception("No se encontró el usuario actual");
+    }
+
+    final response = await http.post(
+      Uri.parse(
+        'https://yost.es/SM-IT/2025-26/1B/website/mvp/actualizar_caducidad_todos.php',
+      ),
+      body: {
+        'usuario_id': usuarioId.toString(),
+      },
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception("No se pudo actualizar la caducidad");
+    }
+
+    final data = jsonDecode(response.body);
+
+    if (data is! Map || data['ok'] != true) {
+      throw Exception(data['error'] ?? "Error al recalcular la caducidad");
+    }
   }
 
   Future<List> obtenerDespensa() async {
@@ -50,7 +82,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
       }
 
       if (data is Map && data['ok'] == true && data['productos'] != null) {
-        return data['productos'];
+        return List.from(data['productos']);
       }
 
       throw Exception("Formato de respuesta no válido");
@@ -177,7 +209,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
   String obtenerTextoCaducidad(String estado) {
     switch (estado) {
       case 'rojo':
-        return 'Caducado';
+        return 'Revisar ya';
       case 'amarillo':
         return 'Consumir pronto';
       default:
@@ -364,82 +396,172 @@ class _InventoryScreenState extends State<InventoryScreen> {
   }
 
   Widget _buildProductCard(Map item) {
-    final esFavorito = item['favorito'].toString() == '1';
-    final estadoCaducidad = item['estado_caducidad']?.toString() ?? 'verde';
-    final colorCaducidad = obtenerColorCaducidad(estadoCaducidad);
-    final textoCaducidad = obtenerTextoCaducidad(estadoCaducidad);
+  final esFavorito = item['favorito'].toString() == '1';
+  final estadoCaducidad = item['estado_caducidad']?.toString() ?? 'verde';
+  final colorCaducidad = obtenerColorCaducidad(estadoCaducidad);
+  final textoCaducidad = obtenerTextoCaducidad(estadoCaducidad);
 
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: crema, width: 1.1),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.035),
-            blurRadius: 14,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 14, 10, 14),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                color: crema.withOpacity(0.75),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: const Icon(
-                Icons.shopping_basket_rounded,
-                color: verde,
-                size: 26,
-              ),
+  final marca = (item['marca'] ?? '').toString();
+  final cantidad = (item['cantidad'] ?? '').toString();
+  final calorias = (item['calorias'] ?? '').toString();
+  final motivoIA = (item['motivo_ia'] ?? '').toString();
+  final fechaCaducidad = (item['fecha_estimada_caducidad'] ?? '').toString();
+  final diasEstimados = (item['dias_estimados'] ?? '').toString();
+
+  return Container(
+    margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(22),
+      border: Border.all(color: crema, width: 1.1),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.035),
+          blurRadius: 14,
+          offset: const Offset(0, 5),
+        ),
+      ],
+    ),
+    child: Padding(
+      padding: const EdgeInsets.fromLTRB(14, 14, 10, 14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              color: crema.withOpacity(0.75),
+              borderRadius: BorderRadius.circular(16),
             ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    item['nombre'] ?? 'Sin nombre',
-                    style: const TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w700,
-                      color: verde,
-                    ),
+            child: const Icon(
+              Icons.shopping_basket_rounded,
+              color: verde,
+              size: 26,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item['nombre'] ?? 'Sin nombre',
+                  style: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    color: verde,
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Marca: ${item['marca'] ?? ''}',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: Color(0xFF6A6A6A),
-                    ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Marca: $marca',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Color(0xFF6A6A6A),
                   ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Cantidad: $cantidad',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Color(0xFF6A6A6A),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                if (fechaCaducidad.isNotEmpty && fechaCaducidad != 'null') ...[
                   const SizedBox(height: 2),
                   Text(
-                    'Cantidad: ${item['cantidad'] ?? ''}',
+                    'Caducidad estimada: $fechaCaducidad',
                     style: const TextStyle(
                       fontSize: 13,
                       color: Color(0xFF6A6A6A),
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Calorías: ${item['calorias'] ?? ''}',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: Color(0xFF6A6A6A),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Container(
+                ],
+                const SizedBox(height: 10),
+                InkWell(
+                  borderRadius: BorderRadius.circular(20),
+                  onTap: () {
+                    final tieneDias =
+                        diasEstimados.isNotEmpty && diasEstimados != 'null';
+                    final tieneMotivo =
+                        motivoIA.isNotEmpty && motivoIA != 'null';
+
+                    showDialog(
+                      context: context,
+                      builder: (context) => Dialog(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(22),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    width: 12,
+                                    height: 12,
+                                    decoration: BoxDecoration(
+                                      color: colorCaducidad,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    textoCaducidad,
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w700,
+                                      color: colorCaducidad,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                tieneDias
+                                    ? 'Duración estimada: $diasEstimados días'
+                                    : 'No hay una estimación de días disponible.',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  color: Color(0xFF4F4F4F),
+                                  height: 1.4,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                tieneMotivo
+                                    ? motivoIA
+                                    : 'No hay una explicación disponible todavía.',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  color: Color(0xFF6A6A6A),
+                                  height: 1.45,
+                                ),
+                              ),
+                              const SizedBox(height: 18),
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: TextButton(
+                                  onPressed: () => Navigator.pop(context),
+                                  child: const Text(
+                                    'Cerrar',
+                                    style: TextStyle(color: verde),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                  child: Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 10,
                       vertical: 6,
@@ -471,40 +593,40 @@ class _InventoryScreenState extends State<InventoryScreen> {
                       ],
                     ),
                   ),
-                ],
-              ),
-            ),
-            Column(
-              children: [
-                IconButton(
-                  icon: Icon(
-                    esFavorito ? Icons.favorite : Icons.favorite_border,
-                    color: esFavorito ? Colors.red : marron.withOpacity(0.7),
-                  ),
-                  onPressed: () {
-                    cambiarFavorito(
-                      item['id'].toString(),
-                      esFavorito ? 0 : 1,
-                    );
-                  },
-                ),
-                IconButton(
-                  icon: const Icon(Icons.delete_outline_rounded, color: Colors.red),
-                  onPressed: () {
-                    confirmarBorrado(
-                      item['id'].toString(),
-                      item['nombre'] ?? 'producto',
-                    );
-                  },
                 ),
               ],
             ),
-          ],
-        ),
+          ),
+          Column(
+            children: [
+              IconButton(
+                icon: Icon(
+                  esFavorito ? Icons.favorite : Icons.favorite_border,
+                  color: esFavorito ? Colors.red : marron.withOpacity(0.7),
+                ),
+                onPressed: () {
+                  cambiarFavorito(
+                    item['id'].toString(),
+                    esFavorito ? 0 : 1,
+                  );
+                },
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete_outline_rounded, color: Colors.red),
+                onPressed: () {
+                  confirmarBorrado(
+                    item['id'].toString(),
+                    item['nombre'] ?? 'producto',
+                  );
+                },
+              ),
+            ],
+          ),
+        ],
       ),
-    );
-  }
-
+    ),
+  );
+}
   @override
   Widget build(BuildContext context) {
     return PopScope(
@@ -544,7 +666,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
               ),
             );
             setState(() {
-              _futureDespensa = obtenerDespensa();
+              _futureDespensa = cargarInventarioActualizado();
             });
           },
           child: const Icon(Icons.add),
