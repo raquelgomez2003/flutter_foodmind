@@ -7,7 +7,9 @@ import '../home/home_screen.dart';
 import 'diet_screen.dart';
 
 class PackScreen extends StatefulWidget {
-  const PackScreen({super.key});
+  final bool editingFromSettings;
+
+  const PackScreen({super.key, this.editingFromSettings = false});
 
   @override
   State<PackScreen> createState() => _PackScreenState();
@@ -34,9 +36,17 @@ class _PackScreenState extends State<PackScreen> {
       return;
     }
 
-    setState(() {
-      cargando = true;
-    });
+    // 👉 SI VIENE DESDE AJUSTES: SOLO EDITA Y VUELVE
+    if (widget.editingFromSettings) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('numero_pack', numeroPack);
+
+      Navigator.pop(context);
+      return;
+    }
+
+    // 👉 SI VIENE DEL ONBOARDING: FLUJO NORMAL
+    setState(() => cargando = true);
 
     try {
       final response = await http.post(
@@ -129,9 +139,7 @@ class _PackScreenState extends State<PackScreen> {
       );
     } finally {
       if (!mounted) return;
-      setState(() {
-        cargando = false;
-      });
+      setState(() => cargando = false);
     }
   }
 
@@ -146,9 +154,9 @@ class _PackScreenState extends State<PackScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F6F2),
       appBar: AppBar(
-        title: const Text(
-          'Tu dispositivo',
-          style: TextStyle(
+        title: Text(
+          widget.editingFromSettings ? 'Editar pack' : 'Tu dispositivo',
+          style: const TextStyle(
             fontSize: 22,
             fontWeight: FontWeight.w600,
             color: verde,
@@ -208,9 +216,9 @@ class _PackScreenState extends State<PackScreen> {
                 ],
               ),
               const SizedBox(height: 24),
-              const Text(
-                'Conecta tu pack',
-                style: TextStyle(
+              Text(
+                widget.editingFromSettings ? 'Editar número de pack' : 'Conecta tu pack',
+                style: const TextStyle(
                   fontFamily: 'MoreSugar',
                   fontSize: 26,
                   color: verde,
@@ -283,7 +291,7 @@ class _PackScreenState extends State<PackScreen> {
                           Icons.numbers,
                           color: verde,
                         ),
-                        contentPadding: const EdgeInsets.symmetric(
+                                                contentPadding: const EdgeInsets.symmetric(
                           horizontal: 16,
                           vertical: 18,
                         ),
@@ -305,6 +313,8 @@ class _PackScreenState extends State<PackScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
+
+                    // ADVERTENCIA
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 12,
@@ -334,22 +344,27 @@ class _PackScreenState extends State<PackScreen> {
                         ],
                       ),
                     ),
+
                     const SizedBox(height: 20),
+
+                    // BOTÓN CONTINUAR (MISMO ANCHO QUE EL CARD)
                     SizedBox(
                       width: double.infinity,
                       child: cargando
-                          ? const Center(
-                              child: CircularProgressIndicator(),
-                            )
+                          ? const Center(child: CircularProgressIndicator())
                           : PrimaryButton(
-                              text: 'Continuar',
+                              text: widget.editingFromSettings
+                                  ? 'Guardar cambios'
+                                  : 'Continuar',
                               onPressed: continuar,
                             ),
                     ),
                   ],
                 ),
               ),
+
               const SizedBox(height: 16),
+
               const Text(
                 'Podrás cambiarlo más adelante si lo necesitas.',
                 style: TextStyle(

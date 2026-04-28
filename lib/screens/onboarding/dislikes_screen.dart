@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../widgets/primary_button.dart';
 import 'initial_stock_screen.dart';
 
@@ -6,12 +8,14 @@ class DislikesScreen extends StatefulWidget {
   final String numeroPack;
   final String diet;
   final List<String> allergies;
+  final bool editingFromSettings;
 
   const DislikesScreen({
     super.key,
     required this.numeroPack,
     required this.diet,
     required this.allergies,
+    this.editingFromSettings = false,
   });
 
   @override
@@ -20,15 +24,27 @@ class DislikesScreen extends StatefulWidget {
 
 class _DislikesScreenState extends State<DislikesScreen> {
   final TextEditingController controller = TextEditingController();
-  final List<String> dislikes = [];
+  List<String> dislikes = [];
 
   @override
-  void dispose() {
-    controller.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    cargar();
   }
 
-  void anadirProducto() {
+  Future<void> cargar() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getString('dislikes_usuario');
+    if (saved != null) dislikes = List<String>.from(jsonDecode(saved));
+    setState(() {});
+  }
+
+  Future<void> guardar() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('dislikes_usuario', jsonEncode(dislikes));
+  }
+
+  void add() {
     if (controller.text.trim().isNotEmpty) {
       setState(() {
         dislikes.add(controller.text.trim());
@@ -40,8 +56,8 @@ class _DislikesScreenState extends State<DislikesScreen> {
   @override
   Widget build(BuildContext context) {
     const verde = Color(0xFF527d5a);
-    const beige = Color(0xFFd2b08b);
     const crema = Color(0xFFe9ddd4);
+    const beige = Color(0xFFd2b08b);
     const mostaza = Color(0xFFf1b810);
     const marron = Color(0xFF9d5d31);
 
@@ -104,17 +120,13 @@ class _DislikesScreenState extends State<DislikesScreen> {
                       ),
                     ),
                   ),
-                  const Icon(
-                    Icons.thumb_down_alt_rounded,
-                    size: 42,
-                    color: verde,
-                  ),
+                  const Icon(Icons.thumb_down_alt_rounded,
+                      size: 42, color: verde),
                 ],
               ),
 
               const SizedBox(height: 24),
 
-              // TITULO
               const Text(
                 '¿Qué no te gusta?',
                 style: TextStyle(
@@ -148,10 +160,7 @@ class _DislikesScreenState extends State<DislikesScreen> {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(22),
-                    border: Border.all(
-                      color: crema,
-                      width: 1.2,
-                    ),
+                    border: Border.all(color: crema, width: 1.2),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withOpacity(0.04),
@@ -162,7 +171,7 @@ class _DislikesScreenState extends State<DislikesScreen> {
                   ),
                   child: Column(
                     children: [
-                      // INPUT
+                      // INPUT + BOTÓN AÑADIR
                       Row(
                         children: [
                           Expanded(
@@ -172,24 +181,16 @@ class _DislikesScreenState extends State<DislikesScreen> {
                                 hintText: 'Ej. brócoli, coco...',
                                 filled: true,
                                 fillColor: crema.withOpacity(0.55),
-                                prefixIcon: const Icon(
-                                  Icons.add,
-                                  color: verde,
-                                ),
+                                prefixIcon:
+                                    const Icon(Icons.add, color: verde),
                                 border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                  borderSide: BorderSide.none,
-                                ),
-                                enabledBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(16),
                                   borderSide: BorderSide.none,
                                 ),
                                 focusedBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(16),
                                   borderSide: const BorderSide(
-                                    color: verde,
-                                    width: 1.5,
-                                  ),
+                                      color: verde, width: 1.5),
                                 ),
                               ),
                             ),
@@ -202,87 +203,26 @@ class _DislikesScreenState extends State<DislikesScreen> {
                             ),
                             child: IconButton(
                               icon: const Icon(Icons.add, color: Colors.white),
-                              onPressed: anadirProducto,
+                              onPressed: add,
                             ),
                           ),
                         ],
                       ),
 
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 12),
 
-                      // LISTA
-                      Expanded(
-                        child: dislikes.isEmpty
-                            ? const Center(
-                                child: Text(
-                                  'Aún no has añadido nada',
-                                  style: TextStyle(
-                                    color: Color(0xFF8A8A8A),
-                                  ),
-                                ),
-                              )
-                            : ListView.builder(
-                                itemCount: dislikes.length,
-                                itemBuilder: (context, index) {
-                                  final item = dislikes[index];
-
-                                  return Container(
-                                    margin: const EdgeInsets.only(bottom: 10),
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 14,
-                                      vertical: 12,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: crema.withOpacity(0.5),
-                                      borderRadius: BorderRadius.circular(14),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        Expanded(
-                                          child: Text(
-                                            item,
-                                            style: const TextStyle(
-                                              fontSize: 15,
-                                            ),
-                                          ),
-                                        ),
-                                        GestureDetector(
-                                          onTap: () {
-                                            setState(
-                                                () => dislikes.remove(item));
-                                          },
-                                          child: const Icon(
-                                            Icons.close,
-                                            size: 18,
-                                            color: marron,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                },
-                              ),
-                      ),
-
-                      const SizedBox(height: 10),
-
-                      // INFO
+                      // ADVERTENCIA
                       Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
-                        ),
+                            horizontal: 12, vertical: 10),
                         decoration: BoxDecoration(
                           color: mostaza.withOpacity(0.12),
                           borderRadius: BorderRadius.circular(14),
                         ),
                         child: const Row(
                           children: [
-                            Icon(
-                              Icons.info_outline,
-                              size: 18,
-                              color: marron,
-                            ),
+                            Icon(Icons.info_outline,
+                                size: 18, color: marron),
                             SizedBox(width: 8),
                             Expanded(
                               child: Text(
@@ -296,19 +236,48 @@ class _DislikesScreenState extends State<DislikesScreen> {
                           ],
                         ),
                       ),
+
+                      const SizedBox(height: 20),
+
+                      // LISTA
+                      Expanded(
+                        child: ListView(
+                          children: dislikes
+                              .map(
+                                (e) => ListTile(
+                                  title: Text(e),
+                                  trailing: IconButton(
+                                    icon: const Icon(Icons.delete,
+                                        color: verde),
+                                    onPressed: () {
+                                      setState(() => dislikes.remove(e));
+                                    },
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                        ),
+                      ),
                     ],
                   ),
                 ),
               ),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
 
-              // BOTON
+              // BOTÓN CONTINUAR (MISMO ANCHO QUE EL CARD)
               SizedBox(
                 width: double.infinity,
                 child: PrimaryButton(
-                  text: 'Continuar',
-                  onPressed: () {
+                  text: "Continuar",
+                  onPressed: () async {
+                    await guardar();
+
+                    if (widget.editingFromSettings) {
+                      Navigator.pop(context);
+                      return;
+                    }
+
                     Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -323,8 +292,6 @@ class _DislikesScreenState extends State<DislikesScreen> {
                   },
                 ),
               ),
-
-              const SizedBox(height: 16),
             ],
           ),
         ),

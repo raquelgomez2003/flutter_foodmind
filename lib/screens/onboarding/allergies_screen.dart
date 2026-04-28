@@ -1,15 +1,19 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../widgets/primary_button.dart';
 import 'dislikes_screen.dart';
 
 class AllergiesScreen extends StatefulWidget {
   final String numeroPack;
   final String diet;
+  final bool editingFromSettings;
 
   const AllergiesScreen({
     super.key,
     required this.numeroPack,
     required this.diet,
+    this.editingFromSettings = false,
   });
 
   @override
@@ -18,19 +22,40 @@ class AllergiesScreen extends StatefulWidget {
 
 class _AllergiesScreenState extends State<AllergiesScreen> {
   bool? hasAllergies;
-  final TextEditingController _allergyController = TextEditingController();
+  final TextEditingController controller = TextEditingController();
 
   @override
-  void dispose() {
-    _allergyController.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    cargar();
+  }
+
+  Future<void> cargar() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getString('alergias_usuario');
+
+    if (saved != null) {
+      final list = List<String>.from(jsonDecode(saved));
+      if (list.isNotEmpty && list.first != "Ninguna") {
+        hasAllergies = true;
+        controller.text = list.join(", ");
+      } else {
+        hasAllergies = false;
+      }
+      setState(() {});
+    }
+  }
+
+  Future<void> guardar(List<String> alergias) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('alergias_usuario', jsonEncode(alergias));
   }
 
   @override
   Widget build(BuildContext context) {
     const verde = Color(0xFF527d5a);
-    const beige = Color(0xFFd2b08b);
     const crema = Color(0xFFe9ddd4);
+    const beige = Color(0xFFd2b08b);
     const mostaza = Color(0xFFf1b810);
     const marron = Color(0xFF9d5d31);
 
@@ -56,6 +81,8 @@ class _AllergiesScreenState extends State<AllergiesScreen> {
           child: Column(
             children: [
               const SizedBox(height: 20),
+
+              // ICONO
               Stack(
                 alignment: Alignment.center,
                 children: [
@@ -98,7 +125,9 @@ class _AllergiesScreenState extends State<AllergiesScreen> {
                   ),
                 ],
               ),
+
               const SizedBox(height: 24),
+
               const Text(
                 'Cuéntanos tus alergias',
                 style: TextStyle(
@@ -107,7 +136,9 @@ class _AllergiesScreenState extends State<AllergiesScreen> {
                   color: verde,
                 ),
               ),
+
               const SizedBox(height: 12),
+
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 8),
                 child: Text(
@@ -120,16 +151,16 @@ class _AllergiesScreenState extends State<AllergiesScreen> {
                   ),
                 ),
               ),
+
               const SizedBox(height: 30),
+
+              // CARD
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(22),
-                  border: Border.all(
-                    color: crema,
-                    width: 1.2,
-                  ),
+                  border: Border.all(color: crema, width: 1.2),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withOpacity(0.04),
@@ -143,11 +174,8 @@ class _AllergiesScreenState extends State<AllergiesScreen> {
                   children: [
                     const Row(
                       children: [
-                        Icon(
-                          Icons.medical_information_outlined,
-                          size: 18,
-                          color: marron,
-                        ),
+                        Icon(Icons.medical_information_outlined,
+                            size: 18, color: marron),
                         SizedBox(width: 8),
                         Expanded(
                           child: Text(
@@ -161,7 +189,10 @@ class _AllergiesScreenState extends State<AllergiesScreen> {
                         ),
                       ],
                     ),
+
                     const SizedBox(height: 16),
+
+                    // BOTONES SÍ / NO
                     Row(
                       children: [
                         Expanded(
@@ -227,60 +258,47 @@ class _AllergiesScreenState extends State<AllergiesScreen> {
                         ),
                       ],
                     ),
+
                     if (hasAllergies == true) ...[
                       const SizedBox(height: 16),
                       TextField(
-                        controller: _allergyController,
+                        controller: controller,
                         decoration: InputDecoration(
                           hintText: 'Ej. lactosa, gluten, frutos secos...',
-                          hintStyle: const TextStyle(
-                            color: Color(0xFF8E857D),
-                          ),
+                          hintStyle: const TextStyle(color: Color(0xFF8E857D)),
                           filled: true,
                           fillColor: crema.withOpacity(0.55),
-                          prefixIcon: const Icon(
-                            Icons.edit_note_rounded,
-                            color: verde,
-                          ),
+                          prefixIcon: const Icon(Icons.edit_note_rounded,
+                              color: verde),
                           contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 18,
-                          ),
+                              horizontal: 16, vertical: 18),
                           border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            borderSide: BorderSide.none,
-                          ),
-                          enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
                             borderSide: BorderSide.none,
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
-                            borderSide: const BorderSide(
-                              color: verde,
-                              width: 1.5,
-                            ),
+                            borderSide:
+                                const BorderSide(color: verde, width: 1.5),
                           ),
                         ),
                       ),
                     ],
+
                     const SizedBox(height: 12),
+
+                    // ADVERTENCIA
                     Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
-                      ),
+                          horizontal: 12, vertical: 10),
                       decoration: BoxDecoration(
                         color: mostaza.withOpacity(0.12),
                         borderRadius: BorderRadius.circular(14),
                       ),
                       child: const Row(
                         children: [
-                          Icon(
-                            Icons.info_outline,
-                            size: 18,
-                            color: marron,
-                          ),
+                          Icon(Icons.info_outline,
+                              size: 18, color: marron),
                           SizedBox(width: 8),
                           Expanded(
                             child: Text(
@@ -294,24 +312,33 @@ class _AllergiesScreenState extends State<AllergiesScreen> {
                         ],
                       ),
                     ),
+
                     const SizedBox(height: 20),
+
                     SizedBox(
                       width: double.infinity,
                       child: PrimaryButton(
                         text: 'Continuar',
-                        onPressed: () {
+                        onPressed: () async {
                           if (hasAllergies == null) return;
 
                           List<String> allergies = [];
 
                           if (hasAllergies == true) {
-                            allergies = _allergyController.text
+                            allergies = controller.text
                                 .split(',')
                                 .map((e) => e.trim())
                                 .where((e) => e.isNotEmpty)
                                 .toList();
                           } else {
                             allergies = ['Ninguna'];
+                          }
+
+                          await guardar(allergies);
+
+                          if (widget.editingFromSettings) {
+                            Navigator.pop(context);
+                            return;
                           }
 
                           Navigator.push(
@@ -330,7 +357,9 @@ class _AllergiesScreenState extends State<AllergiesScreen> {
                   ],
                 ),
               ),
+
               const SizedBox(height: 16),
+
               const Text(
                 'Podrás cambiar esta información más adelante.',
                 style: TextStyle(

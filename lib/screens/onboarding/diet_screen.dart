@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../widgets/primary_button.dart';
 import 'allergies_screen.dart';
 
 class DietScreen extends StatefulWidget {
   final String numeroPack;
+  final bool editingFromSettings;
 
   const DietScreen({
     super.key,
     required this.numeroPack,
+    this.editingFromSettings = false,
   });
 
   @override
@@ -18,16 +21,26 @@ class _DietScreenState extends State<DietScreen> {
   final TextEditingController _dietController = TextEditingController();
 
   @override
-  void dispose() {
-    _dietController.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    cargarDietaGuardada();
+  }
+
+  Future<void> cargarDietaGuardada() async {
+    final prefs = await SharedPreferences.getInstance();
+    _dietController.text = prefs.getString('dieta_usuario') ?? '';
+  }
+
+  Future<void> guardarDieta(String dieta) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('dieta_usuario', dieta);
   }
 
   @override
   Widget build(BuildContext context) {
     const verde = Color(0xFF527d5a);
-    const beige = Color(0xFFd2b08b);
     const crema = Color(0xFFe9ddd4);
+    const beige = Color(0xFFd2b08b);
     const mostaza = Color(0xFFf1b810);
     const marron = Color(0xFF9d5d31);
 
@@ -53,6 +66,8 @@ class _DietScreenState extends State<DietScreen> {
           child: Column(
             children: [
               const SizedBox(height: 20),
+
+              // ICONO
               Stack(
                 alignment: Alignment.center,
                 children: [
@@ -88,14 +103,12 @@ class _DietScreenState extends State<DietScreen> {
                       ),
                     ),
                   ),
-                  const Icon(
-                    Icons.eco_rounded,
-                    size: 42,
-                    color: verde,
-                  ),
+                  const Icon(Icons.eco_rounded, size: 42, color: verde),
                 ],
               ),
+
               const SizedBox(height: 24),
+
               const Text(
                 'Cuéntanos tu dieta',
                 style: TextStyle(
@@ -104,7 +117,9 @@ class _DietScreenState extends State<DietScreen> {
                   color: verde,
                 ),
               ),
+
               const SizedBox(height: 12),
+
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 8),
                 child: Text(
@@ -117,16 +132,16 @@ class _DietScreenState extends State<DietScreen> {
                   ),
                 ),
               ),
+
               const SizedBox(height: 30),
+
+              // CARD
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(22),
-                  border: Border.all(
-                    color: crema,
-                    width: 1.2,
-                  ),
+                  border: Border.all(color: crema, width: 1.2),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withOpacity(0.04),
@@ -140,11 +155,8 @@ class _DietScreenState extends State<DietScreen> {
                   children: [
                     const Row(
                       children: [
-                        Icon(
-                          Icons.restaurant_menu_rounded,
-                          size: 18,
-                          color: marron,
-                        ),
+                        Icon(Icons.restaurant_menu_rounded,
+                            size: 18, color: marron),
                         SizedBox(width: 8),
                         Text(
                           'Tipo de dieta',
@@ -156,58 +168,46 @@ class _DietScreenState extends State<DietScreen> {
                         ),
                       ],
                     ),
+
                     const SizedBox(height: 10),
+
                     TextField(
                       controller: _dietController,
                       decoration: InputDecoration(
                         hintText: 'Ej. vegetariana, vegana, omnívora...',
-                        hintStyle: const TextStyle(
-                          color: Color(0xFF8E857D),
-                        ),
+                        hintStyle: const TextStyle(color: Color(0xFF8E857D)),
                         filled: true,
                         fillColor: crema.withOpacity(0.55),
-                        prefixIcon: const Icon(
-                          Icons.spa_rounded,
-                          color: verde,
-                        ),
+                        prefixIcon:
+                            const Icon(Icons.spa_rounded, color: verde),
                         contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 18,
-                        ),
+                            horizontal: 16, vertical: 18),
                         border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: BorderSide.none,
-                        ),
-                        enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16),
                           borderSide: BorderSide.none,
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16),
-                          borderSide: const BorderSide(
-                            color: verde,
-                            width: 1.5,
-                          ),
+                          borderSide:
+                              const BorderSide(color: verde, width: 1.5),
                         ),
                       ),
                     ),
+
                     const SizedBox(height: 12),
+
+                    // ADVERTENCIA
                     Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
-                      ),
+                          horizontal: 12, vertical: 10),
                       decoration: BoxDecoration(
                         color: mostaza.withOpacity(0.12),
                         borderRadius: BorderRadius.circular(14),
                       ),
                       child: const Row(
                         children: [
-                          Icon(
-                            Icons.info_outline,
-                            size: 18,
-                            color: marron,
-                          ),
+                          Icon(Icons.info_outline,
+                              size: 18, color: marron),
                           SizedBox(width: 8),
                           Expanded(
                             child: Text(
@@ -221,20 +221,30 @@ class _DietScreenState extends State<DietScreen> {
                         ],
                       ),
                     ),
+
                     const SizedBox(height: 20),
+
                     SizedBox(
                       width: double.infinity,
                       child: PrimaryButton(
                         text: 'Continuar',
-                        onPressed: () {
-                          if (_dietController.text.trim().isEmpty) return;
+                        onPressed: () async {
+                          final dieta = _dietController.text.trim();
+                          if (dieta.isEmpty) return;
+
+                          await guardarDieta(dieta);
+
+                          if (widget.editingFromSettings) {
+                            Navigator.pop(context);
+                            return;
+                          }
 
                           Navigator.push(
                             context,
                             MaterialPageRoute(
                               builder: (_) => AllergiesScreen(
                                 numeroPack: widget.numeroPack,
-                                diet: _dietController.text.trim(),
+                                diet: dieta,
                               ),
                             ),
                           );
@@ -244,7 +254,9 @@ class _DietScreenState extends State<DietScreen> {
                   ],
                 ),
               ),
+
               const SizedBox(height: 16),
+
               const Text(
                 'Podrás modificar esta información más adelante.',
                 style: TextStyle(
